@@ -7,6 +7,7 @@ package dnspodapi
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"sync"
@@ -100,7 +101,10 @@ func Action(module, action string, data Params) ActionResult {
 	if f, ok := reflectFuncs[module]; ok {
 		return f(action, data)
 	}
-	return ActionResult{}
+	return ActionResult{
+		Code: ErrUnkownModule,
+		Err:  Err(ErrUnkownModule, module),
+	}
 }
 
 // HTTPResp returns the http response
@@ -114,6 +118,7 @@ func HTTPResp(module, action string, vs url.Values, data url.Values) (int, []byt
 	}
 	data.Add("login_token", apiToken)
 	data.Add("format", format)
+	log.Println("send post request", ep, vs, data.Encode())
 	return myhttp.HPost(ep, vs, []byte(data.Encode()), "")
 }
 
