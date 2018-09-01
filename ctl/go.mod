@@ -18,6 +18,7 @@ require (
 	github.com/spf13/viper v1.1.0
 	github.com/stretchr/testify v1.2.2 // indirect
 	github.com/wangzn/dnspodapi v0.0.0-20180831084134-aeb603ab8ef9
+	github.com/wangzn/goutils v0.0.0-20180831064828-23e889715ec6
 	golang.org/x/sys v0.0.0-20180830151530-49385e6e1522 // indirect
 	golang.org/x/text v0.3.0 // indirect
 	gopkg.in/yaml.v2 v2.2.1 // indirect
