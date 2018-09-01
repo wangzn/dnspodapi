@@ -22,6 +22,8 @@ const (
 	ErrReflectFuncInvalidReturnValue
 	// ErrInvalidTypeAssertion for invalid type assertion
 	ErrInvalidTypeAssertion
+	// ErrInvalidStatus for invalid status code
+	ErrInvalidStatus
 )
 
 var ers map[int]string
@@ -33,6 +35,7 @@ func init() {
 	ers[ErrReflectStructIsNil] = "reflect valueof struct is nil, module: %s"
 	ers[ErrReflectFuncInvalidReturnValue] = "invalid return value, got 0"
 	ers[ErrInvalidTypeAssertion] = "invalid type assertion to `%s`"
+	ers[ErrInvalidStatus] = "status fail, code: %s, msg: %s"
 }
 
 // Err returns error
