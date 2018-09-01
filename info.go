@@ -1,6 +1,4 @@
-// Copyright 2018 TED@Sogou, Inc. All rights reserved.
-
-// @Author: wangzhongning@sogou-inc.com
+// @Author: wangzn04@gmail.com
 // @Date: 2018-08-31 15:15:18
 
 package dnspodapi
