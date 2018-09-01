@@ -1,0 +1,8 @@
+global:
+  # namespace: "ashdev"
+  api_id: "YOUR_API_ID"
+  api_token: "YOUR_API_TOKEN"
+
+ashdev:
+  api_id: "ashdev_apiid"
+  api_token: "ashdev_apitoken"
