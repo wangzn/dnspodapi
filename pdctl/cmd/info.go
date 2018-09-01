@@ -21,35 +21,29 @@ import (
 	"github.com/wangzn/dnspodapi"
 )
 
-// domainCmd represents the domain command
-var domainCmd = &cobra.Command{
-	Use:   "domain",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: runDomainCmd,
+// infoCmd represents the info command
+var infoCmd = &cobra.Command{
+	Use:   "info",
+	Short: "info is for some basic test",
+	Long:  ``,
+	Run:   runInfoCmd,
 }
 
 func init() {
-	rootCmd.AddCommand(domainCmd)
+	rootCmd.AddCommand(infoCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// domainCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// infoCmd.PersistentFlags().String("version", "", "print the api version")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// domainCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// infoCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func runDomainCmd(cmd *cobra.Command, args []string) {
-	fmt.Println("domain called...")
-	res := dnspodapi.Action("domain", "list", nil)
-	fmt.Println(res.Data)
+func runInfoCmd(cmd *cobra.Command, args []string) {
+	res := dnspodapi.Action("info", "version", nil)
+	fmt.Println(res)
 }
