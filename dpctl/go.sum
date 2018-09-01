@@ -1,0 +1,15 @@
+github.com/facebookgo/errgroup v0.0.0-20160209021148-779c8d7ef069 h1:IdOVrga1ENNu/2+Gt9mNqJ8E8Ed4DhOi514NIqKD2q0=
+github.com/facebookgo/errgroup v0.0.0-20160209021148-779c8d7ef069/go.mod h1:jelyCGQBApd6AYnPVnvk+ZG9by4cjNIOD/gmTviVbLA=
+github.com/fatih/structs v1.0.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
+github.com/mitchellh/go-homedir v1.0.0 h1:vKb8ShqSby24Yrqr/yDYkuFz8d0WUjys40rvnGC8aR0=
+github.com/mitchellh/go-homedir v1.0.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
+github.com/olekukonko/tablewriter v0.0.0-20180506121414-d4647c9c7a84 h1:fiKJgB4JDUd43CApkmCeTSQlWjtTtABrU2qsgbuP0BI=
+github.com/olekukonko/tablewriter v0.0.0-20180506121414-d4647c9c7a84/go.mod h1:vsDQFd/mU46D+Z4whnwzcISnGGzXWMclvtLoiIKAKIo=
+github.com/spf13/cobra v0.0.3 h1:ZlrZ4XsMRm04Fr5pSFxBgfND2EBVa1nLpiy1stUsX/8=
+github.com/spf13/cobra v0.0.3/go.mod h1:1l0Ry5zgKvJasoi3XT1TypsSe7PqH0Sj9dhYf7v3XqQ=
+github.com/spf13/viper v1.1.0 h1:V7OZpY8i3C1x/pDmU0zNNlfVoDz112fSYvtWMjjS3f4=
+github.com/spf13/viper v1.1.0/go.mod h1:A8kyI5cUJhb8N+3pkfONlcEcZbueH6nhAm0Fq7SrnBM=
+github.com/wangzn/dnspodapi v0.0.0-20180901114311-127648fa97c2 h1:iAv4sxq6ypQ2jKYjiAf/QNzPALyZKRZOM+avXUZeTTM=
+github.com/wangzn/dnspodapi v0.0.0-20180901114311-127648fa97c2/go.mod h1:cN7pSwNL6TeUlJC8qPOX5Uf/zqYAjNcihX1tp38DBQw=
+github.com/wangzn/goutils v0.0.0-20180901002002-1e7cc5a6fd93 h1:hRmVC+VTowuKPBzhUEjT6Phmozuz2fUAdLEGdhsngWI=
+github.com/wangzn/goutils v0.0.0-20180901002002-1e7cc5a6fd93/go.mod h1:wqWwYEwXMS+P444EllVFuyJTfP0Duf5CZ75X31fLt9w=
