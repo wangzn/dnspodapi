@@ -1,0 +1,4 @@
+proxy11 A 8.8.8.12
+www11 CNAME proxy6.
+www12 CNAME proxy6.sogou.com
+proxy12 A 8.8.8.31
