@@ -16,6 +16,8 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 
@@ -31,6 +33,8 @@ const (
 	APIIDField = "api_id"
 	// APITokenField defines the field raw string of `api_token` in config file
 	APITokenField = "api_token"
+	// LogOutput defines the output of writer of log
+	LogOutput = "log_output"
 	// GlobalNamespace defines the default namespace raw string
 	GlobalNamespace = "global"
 )
@@ -68,6 +72,7 @@ func Execute() {
 }
 
 func init() {
+	log.SetFlags(log.Lshortfile | log.Lmicroseconds)
 	cobra.OnInitialize(initConfig)
 
 	// Here you will define your flags and configuration settings.
@@ -113,9 +118,23 @@ func initConfig() {
 		if m, ok := global["namespace"]; ok {
 			ns = m
 		}
+		initLog(ns)
 		initAPIIDToken(ns)
 		checkAPIIDToken()
 		dnspodapi.SetAPIToken(apiID, apiToken)
+	}
+}
+
+func initLog(ns string) {
+	c := viper.GetStringMapString(ns)
+	l := mymap.StringMustString(c, LogOutput)
+	switch l {
+	case "stdout":
+		log.SetOutput(os.Stdout)
+	case "stderr":
+		log.SetOutput(os.Stderr)
+	default:
+		log.SetOutput(ioutil.Discard)
 	}
 }
 
