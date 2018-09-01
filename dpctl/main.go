@@ -14,7 +14,7 @@
 
 package main
 
-import "github.com/wangzn/dnspodapi/ctl/cmd"
+import "github.com/wangzn/dnspodapi/pdctl/cmd"
 
 func main() {
 	cmd.Execute()

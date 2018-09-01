@@ -24,14 +24,9 @@ import (
 // infoCmd represents the info command
 var infoCmd = &cobra.Command{
 	Use:   "info",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: runInfoCmd,
+	Short: "info is for some basic test",
+	Long:  ``,
+	Run:   runInfoCmd,
 }
 
 func init() {
@@ -49,8 +44,6 @@ func init() {
 }
 
 func runInfoCmd(cmd *cobra.Command, args []string) {
-	fmt.Println("info called")
-	dnspodapi.SetAPIToken(65701, "181ba8e2851d5b34c2148cc25629f9dd")
 	res := dnspodapi.Action("info", "version", nil)
 	fmt.Println(res)
 }

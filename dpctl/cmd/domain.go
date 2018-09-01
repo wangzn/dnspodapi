@@ -24,14 +24,9 @@ import (
 // domainCmd represents the domain command
 var domainCmd = &cobra.Command{
 	Use:   "domain",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: runDomainCmd,
+	Short: "domain is ctl tool for domain resources",
+	Long:  ``,
+	Run:   runDomainCmd,
 }
 
 func init() {
@@ -50,8 +45,6 @@ func init() {
 
 func runDomainCmd(cmd *cobra.Command, args []string) {
 	fmt.Println("domain called...")
-	dnspodapi.SetAPIToken(65701, "181ba8e2851d5b34c2148cc25629f9dd")
 	res := dnspodapi.Action("domain", "list", nil)
-
 	fmt.Println(res.Data)
 }
