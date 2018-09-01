@@ -6,13 +6,42 @@
 package dnspodapi
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"reflect"
+	"strconv"
+
+	"github.com/olekukonko/tablewriter"
+	"github.com/wangzn/goutils/structs"
 )
 
 // DomainEntry defines the API result struct of domain line
 type DomainEntry struct {
+	ID               string `json:"id"`
+	Status           string `json:"status"`
+	Grade            string `json:"grade"`
+	GroupID          string `json:"group_id"`
+	SearchenginePush string `json:"searchengine_push"`
+	IsMark           string `json:"is_marK"`
+	TTL              string `json:"ttl"`
+	CnameSpeedup     string `json:"cname_speedup"`
+	Remark           string `json:"remark"`
+	CreatedOn        string `json:"created_on"`
+	UpdatedOn        string `json:"updated_on"`
+	Punycode         string `json:"punycode"`
+	ExtStatus        string `json:"ext_status"`
+	SrcFlag          string `json:"src_flag"`
+	Name             string `json:"name"`
+	GradeTitle       string `json:"grade_title"`
+	IsVIP            string `json:"is_ip"`
+	Owner            string `json:"owner"`
+	Records          string `json:"records"`
+}
+
+// DomainEntryIDInt defines same for DomainEntry only id is int
+type DomainEntryIDInt struct {
 	ID               int    `json:"id"`
 	Status           string `json:"status"`
 	Grade            string `json:"grade"`
@@ -52,9 +81,9 @@ type DomainListInfo struct {
 
 // DomainListResult defines the API result of `list`
 type DomainListResult struct {
-	Status  RespCommon     `json:"status"`
-	Info    DomainListInfo `json:"info"`
-	Domains []DomainEntry  `json:"domains"`
+	Status  RespCommon         `json:"status"`
+	Info    DomainListInfo     `json:"info"`
+	Domains []DomainEntryIDInt `json:"domains"`
 }
 
 // DomainInfoResult defines the API result of `info``
@@ -106,6 +135,7 @@ func (d Domain) Info(bs []byte) *DomainInfoResult {
 	data := new(DomainInfoResult)
 	err := json.Unmarshal(bs, data)
 	if err != nil {
+		fmt.Println(err)
 		return nil
 	}
 	return data
@@ -119,14 +149,17 @@ func GetDomainInfo(name string) (*DomainEntry, error) {
 	if res.Err != nil {
 		return nil, res.Err
 	}
-	if ret, ok := res.Data.(DomainInfoResult); ok {
-		return &ret.Domain, nil
+	if ret, ok := res.Data.(*DomainInfoResult); ok {
+		if ret != nil {
+			return &ret.Domain, nil
+		}
+		return nil, Err(ErrInvalidTypeAssertion, "DomainInfoResult")
 	}
 	return nil, Err(ErrInvalidTypeAssertion, "DomainInfoResult")
 }
 
 // GetDomainList returns domain entry list
-func GetDomainList() ([]DomainEntry, error) {
+func GetDomainList() ([]DomainEntryIDInt, error) {
 	res := domainReflectFunc("list", nil)
 	if res.Err != nil {
 		return nil, res.Err
@@ -135,4 +168,32 @@ func GetDomainList() ([]DomainEntry, error) {
 		return ret.Domains, nil
 	}
 	return nil, Err(ErrInvalidTypeAssertion, "DomainListResult")
+}
+
+// FormatDomains returns output string
+func FormatDomains(rs []DomainEntry, format string) string {
+	res := ""
+	switch format {
+	case "json":
+		bs, _ := json.Marshal(rs)
+		res = string(bs)
+	default:
+		b := new(bytes.Buffer)
+		table := tablewriter.NewWriter(b)
+		dummy := DomainEntry{}
+		header := structs.StructKeys(dummy, true)
+		table.SetHeader(header)
+		for _, r := range rs {
+			table.Append(structs.StructValues(r, true))
+		}
+		if len(header) > 2 {
+			total := make([]string, len(header))
+			total[len(total)-1] = strconv.Itoa(len(rs))
+			total[len(total)-2] = "TOTAL"
+			table.SetFooter(total)
+		}
+		table.Render()
+		res = b.String()
+	}
+	return res
 }

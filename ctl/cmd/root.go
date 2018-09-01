@@ -16,14 +16,36 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
+	"strconv"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/wangzn/dnspodapi"
+	"github.com/wangzn/goutils/mymap"
+)
+
+const (
+	// APIIDField defines the field raw string of `api_id` in config file
+	APIIDField = "api_id"
+	// APITokenField defines the field raw string of `api_token` in config file
+	APITokenField = "api_token"
+	// LogOutput defines the output of writer of log
+	LogOutput = "log_output"
+	// GlobalNamespace defines the default namespace raw string
+	GlobalNamespace = "global"
 )
 
 var cfgFile string
+
+var (
+	apiID    int
+	apiIDStr string
+	apiToken string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -50,16 +72,17 @@ func Execute() {
 }
 
 func init() {
+	log.SetFlags(log.Lshortfile | log.Lmicroseconds)
 	cobra.OnInitialize(initConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ctl.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.dnspod.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -75,15 +98,72 @@ func initConfig() {
 			os.Exit(1)
 		}
 
-		// Search config in home directory with name ".ctl" (without extension).
+		// Search config in home directory with name ".dnspod" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".ctl")
+		viper.SetConfigName(".dnspod")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	if err := viper.ReadInConfig(); err != nil {
+		panic(err)
+		// fmt.Println("-----Using config file:", viper.ConfigFileUsed())
+
+	} else {
+		// init global id and token for default
+		global := viper.GetStringMapString(GlobalNamespace)
+		initAPIIDToken(GlobalNamespace)
+		ns := GlobalNamespace
+		if m, ok := global["namespace"]; ok {
+			ns = m
+		}
+		initLog(ns)
+		initAPIIDToken(ns)
+		checkAPIIDToken()
+		dnspodapi.SetAPIToken(apiID, apiToken)
 	}
+}
+
+func initLog(ns string) {
+	c := viper.GetStringMapString(ns)
+	l := mymap.StringMustString(c, LogOutput)
+	switch l {
+	case "stdout":
+		log.SetOutput(os.Stdout)
+	case "stderr":
+		log.SetOutput(os.Stderr)
+	default:
+		log.SetOutput(ioutil.Discard)
+	}
+}
+
+func initAPIIDToken(ns string) {
+	c := viper.GetStringMapString(ns)
+	apiIDStr = mymap.StringMustString(c, APIIDField)
+	apiToken = mymap.StringMustString(c, APITokenField)
+}
+
+func checkAPIIDToken() {
+	if apiIDStr == "" {
+		panic("api_id is empty")
+	}
+	if apiToken == "" {
+		panic("api_token is empty")
+	}
+	var err error
+	apiID, err = strconv.Atoi(apiIDStr)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// APIID returns apiID
+func APIID() int {
+	return apiID
+}
+
+// APIToken returns apiToken
+func APIToken() string {
+	return apiToken
 }

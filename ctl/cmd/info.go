@@ -50,7 +50,6 @@ func init() {
 
 func runInfoCmd(cmd *cobra.Command, args []string) {
 	fmt.Println("info called")
-	dnspodapi.SetAPIToken(65701, "181ba8e2851d5b34c2148cc25629f9dd")
 	res := dnspodapi.Action("info", "version", nil)
 	fmt.Println(res)
 }
