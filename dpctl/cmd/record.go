@@ -23,7 +23,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/facebookgo/errgroup"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"github.com/wangzn/dnspodapi"
@@ -100,10 +99,17 @@ func doListRecord() {
 			errs = append(errs, err)
 		}
 		if zinfo != nil {
+			if zinfo.ID == "" {
+				errs = append(errs, fmt.Errorf("Fail to get info of domain `%s`", z))
+				continue
+			}
 			//fmt.Println(dnspodapi.FormatDomains([]dnspodapi.DomainEntry{*zinfo},
 			//	format))
 			//fmt.Printf("Domain `%s`, ID: %s, list records: \n", zinfo.Name,
 			//	zinfo.ID)
+		} else {
+			errs = append(errs, fmt.Errorf("Fail to get info of domain `%s`", z))
+			continue
 		}
 		rs, err := dnspodapi.ListRecord(z, "")
 		if err != nil {
@@ -124,16 +130,14 @@ func doCreateRecord() {
 		pe(err)
 		return
 	}
-	res, cls, err := addRecords(rs, zone, clear)
+	res, cls, errs := addRecords(rs, zone, clear)
 	//	fmt.Println("Created records:")
 	fmt.Println(FormatOps(res, format, "Created records"))
 	if cls != nil && len(cls) > 0 {
 		//		fmt.Println("Cleared records:")
 		fmt.Println(FormatOps(cls, format, "Cleared recoreds"))
 	}
-	if err != nil {
-		pe(err)
-	}
+	pe(errs...)
 }
 
 // OPRecordEntry defines the struct for adding record and result info
@@ -180,7 +184,7 @@ func loadRecordFile(f string) ([]*OPRecordEntry, error) {
 // addRecords add all record into multi-zones
 // returns all cleared records info if clear is true
 func addRecords(rs []*OPRecordEntry, zs string, clear bool) (
-	[]*OPRecordEntry, []*OPRecordEntry, error,
+	[]*OPRecordEntry, []*OPRecordEntry, []error,
 ) {
 	clret := make([]*OPRecordEntry, 0)
 	rsret := make([]*OPRecordEntry, 0)
@@ -188,8 +192,11 @@ func addRecords(rs []*OPRecordEntry, zs string, clear bool) (
 	for i, z := range strings.Split(zs, ",") {
 		zinfo, err := dnspodapi.GetDomainInfo(z)
 		if err != nil {
-			log.Println(err.Error())
 			errs = append(errs, err)
+			continue
+		}
+		if zinfo.ID == "" {
+			errs = append(errs, fmt.Errorf("Fail to get info of domain `%s`", z))
 			continue
 		}
 		zrs, err := dnspodapi.ListRecord(z, zinfo.ID)
@@ -210,7 +217,7 @@ func addRecords(rs []*OPRecordEntry, zs string, clear bool) (
 		clret = append(clret, crs...)
 		rsret = append(rsret, rss...)
 	}
-	return rsret, clret, errgroup.NewMultiError(errs...)
+	return rsret, clret, errs
 }
 
 // addRecordsInZone add all records into zone,
@@ -333,7 +340,7 @@ func FormatOps(rs []*OPRecordEntry, format string, cap string) string {
 }
 
 func pe(ers ...error) {
-	if len(ers) > 0 {
+	if ers != nil && len(ers) > 0 {
 		fmt.Printf("\nError:\n")
 		for _, e := range ers {
 			fmt.Printf("\t%s\n", e.Error())
