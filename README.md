@@ -5,11 +5,14 @@ Go client wrapper and CTL tool for [DNSPOD API]
 ## INSTALL
 
 ```bash
-go install -u github.com/wangzn/dnspodapi/ctl
+go install -u github.com/wangzn/dnspodapi/dpctl
 ```
 
 ## Usage
 
+```bash
+pdctl 
+```
 ### Config
 
 
