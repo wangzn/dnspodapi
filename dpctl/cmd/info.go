@@ -44,6 +44,10 @@ func init() {
 }
 
 func runInfoCmd(cmd *cobra.Command, args []string) {
-	res := dnspodapi.Action("info", "version", nil)
-	fmt.Println(res)
+	ver, err := dnspodapi.GetVersion()
+	if err != nil {
+		pe(err)
+	} else {
+		fmt.Printf("\n\tOK. API version: %s \n", ver)
+	}
 }

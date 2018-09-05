@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"reflect"
 	"strconv"
 
@@ -110,16 +109,8 @@ func init() {
 //			list
 //			get $record_id
 func recordReflectFunc(action string, data Params) ActionResult {
-	pd := url.Values{}
-	for _, v := range []string{"domain", "record_id", "domain_id", "sub_domain",
-		"record_type", "record_line", "record_line_id", "value", "mx", "ttl",
-		"status", "weight"} {
-		if dn, ok := data[v]; ok {
-			pd.Add(v, dn.(string))
-		}
-	}
 	return callReflectFunc(reflect.ValueOf(record), RecordModuleName, action,
-		nil, pd)
+		nil, data)
 }
 
 // List returns record list
@@ -127,7 +118,6 @@ func (r Record) List(bs []byte) *RecordListResult {
 	data := new(RecordListResult)
 	err := json.Unmarshal(bs, data)
 	if err != nil {
-		fmt.Println(err.Error())
 		return nil
 	}
 	return data
@@ -170,19 +160,24 @@ func (r Record) Remove(bs []byte) *RecordRemoveResult {
 
 // ListRecord lists all record by domain
 func ListRecord(domain string, domainID string) ([]RecordEntry, error) {
-	data := make(map[string]interface{})
+	data := P()
 	if domain != "" {
-		data["domain"] = domain
+		data.Add("domain", domain)
 	}
 	if domainID != "" {
-		data["domain_id"] = domainID
+		data.Add("domain_id", domainID)
 	}
 	res := recordReflectFunc("list", data)
 	if res.Err != nil {
 		return nil, res.Err
 	}
 	if ret, ok := res.Data.(*RecordListResult); ok {
-		return ret.Records, nil
+		if ret != nil {
+			if ret.Status.Code == "1" {
+				return ret.Records, nil
+			}
+			return nil, Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
+		}
 	}
 	return nil, Err(ErrInvalidTypeAssertion, "RecordListResult")
 }
@@ -203,12 +198,15 @@ func CreateRecord(domain string, domainID string, data Params) (
 // ModifyRecord modifies a record
 func ModifyRecord(domain string, domainID string, recordID string, data Params) (
 	*RecordEntry, error) {
-	data["record_id"] = recordID
+	if data.Values == nil {
+		data = P()
+	}
+	data.Add("record_id", recordID)
 	if domain != "" {
-		data["domain"] = domain
+		data.Add("domain", domain)
 	}
 	if domainID != "" {
-		data["domain_id"] = domainID
+		data.Add("domain_id", domainID)
 	}
 	res := recordReflectFunc("modify", data)
 	if res.Err != nil {
@@ -222,13 +220,13 @@ func ModifyRecord(domain string, domainID string, recordID string, data Params) 
 
 // RemoveRecord removes a record
 func RemoveRecord(domain string, domainID string, recordID string) (bool, error) {
-	data := make(map[string]interface{})
-	data["record_id"] = recordID
+	data := P()
+	data.Add("record_id", recordID)
 	if domain != "" {
-		data["domain"] = domain
+		data.Add("domain", domain)
 	}
 	if domainID != "" {
-		data["domain_id"] = domainID
+		data.Add("domain_id", domainID)
 	}
 	res := recordReflectFunc("remove", data)
 	if res.Err != nil {
@@ -245,13 +243,13 @@ func RemoveRecord(domain string, domainID string, recordID string) (bool, error)
 
 // GetRecordInfo returns record entry
 func GetRecordInfo(domain string, domainID string, recordID string) (*RecordEntry, error) {
-	data := make(map[string]interface{})
-	data["record_id"] = recordID
+	data := P()
+	data.Add("record_id", recordID)
 	if domain != "" {
-		data["domain"] = domain
+		data.Add("domain", domain)
 	}
 	if domainID != "" {
-		data["domain_id"] = domainID
+		data.Add("domain_id", domainID)
 	}
 	res := recordReflectFunc("info", data)
 	if res.Err != nil {
@@ -259,7 +257,11 @@ func GetRecordInfo(domain string, domainID string, recordID string) (*RecordEntr
 	}
 	if ret, ok := res.Data.(*RecordInfoResult); ok {
 		if ret != nil {
-			return &ret.Record, nil
+			if ret.Status.Code == "1" {
+				return &ret.Record, nil
+			}
+			return nil,
+				Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
 		}
 		return nil, Err(ErrInvalidTypeAssertion, "RecordInfoResult")
 	}

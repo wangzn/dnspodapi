@@ -17,10 +17,11 @@ type RespCommon struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func callReflectFunc(v reflect.Value, module, action string, vs, data url.Values) ActionResult {
+func callReflectFunc(v reflect.Value, module, action string, vs url.Values, data Params) ActionResult {
 	action = strings.Title(action)
 	log.Println("in reflect func", module, action)
-	code, bs, err := HTTPResp(module, action, vs, data)
+
+	code, bs, err := HTTPResp(module, action, vs, data.Values)
 	if err != nil {
 		return ActionResult{
 			Code: code,
