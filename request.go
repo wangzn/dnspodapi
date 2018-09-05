@@ -1,4 +1,4 @@
-// @Author: wangzhongning@sogou-inc.com
+// @Author: wangzn04@gmail.com
 // @Date: 2018-08-31 14:55:56
 
 package dnspodapi
