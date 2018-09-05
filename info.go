@@ -41,5 +41,5 @@ func init() {
 func infoReflectFunc(action string, data Params) ActionResult {
 	log.Println("in info reflect func, aciton:", action)
 	return callReflectFunc(reflect.ValueOf(info), InfoModuleName, action, nil,
-		nil)
+		P())
 }

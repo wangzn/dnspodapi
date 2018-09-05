@@ -33,7 +33,14 @@ var (
 )
 
 // Params defines the common data type used in dnspodapi
-type Params map[string]interface{}
+type Params struct {
+	url.Values
+}
+
+// P init a Params
+func P() Params {
+	return Params{url.Values{}}
+}
 
 // ActionResult defines the result struct of a action
 type ActionResult struct {

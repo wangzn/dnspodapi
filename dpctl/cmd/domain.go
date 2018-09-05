@@ -16,9 +16,30 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/wangzn/dnspodapi"
+	"github.com/wangzn/goutils/mymap"
+)
+
+const (
+	// DomainActionCreate defines OPCreate
+	DomainActionCreate = "create"
+	// DomainActionRemove defines OPRemove
+	DomainActionRemove = "remove"
+	// DomainActionInfo defines OPInfo
+	DomainActionInfo = "info"
+	// DomainActionStatus defines OPStatus
+	DomainActionStatus = "status"
+	// DomainActionList defines OPList
+	DomainActionList = "list"
+)
+
+var (
+	domains   string
+	domainAct string
 )
 
 // domainCmd represents the domain command
@@ -36,15 +57,123 @@ func init() {
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// domainCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// domainCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	domainCmd.PersistentFlags().StringVarP(&domainAct, "action", "a", "list",
+		"domain action: [ create | list | remove | info | enable | disable ]")
+
+	domainCmd.Flags().StringVarP(&domains, "domain", "d", "",
+		"domains to operate")
+
 }
 
 func runDomainCmd(cmd *cobra.Command, args []string) {
-	fmt.Println("domain called...")
-	res := dnspodapi.Action("domain", "list", nil)
-	fmt.Println(res.Data)
+	checkDomainParams()
+	switch domainAct {
+	case "list":
+		doListDomain()
+	case "create":
+		doCreateDomain()
+	case "remove":
+		doRemoveDomain()
+	case "info":
+		doInfoDomain()
+	case "enable":
+		doStatusDomain("enable")
+	case "disable":
+		doStatusDomain("disable")
+	default:
+		doListDomain()
+	}
+}
+
+func checkDomainParams() {
+	if domainAct != "list" {
+		if domains == "" {
+			fmt.Println("domains is empty")
+			os.Exit(1)
+		}
+	}
+}
+
+func doListDomain() {
+	res, err := dnspodapi.GetDomainList()
+	if err != nil {
+		pe(err)
+	}
+	fmt.Println(dnspodapi.FormatDomainIDInts(res, format))
+}
+
+func doCreateDomain() {
+	errs := make([]error, 0)
+	ds := make([]dnspodapi.DomainEntry, 0)
+	for _, d := range strings.Split(domains, ",") {
+		de, err := dnspodapi.CreateDomain(d)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if de != nil {
+			ds = append(ds, *de)
+		}
+	}
+	if len(ds) > 0 {
+		fmt.Println(dnspodapi.FormatDomains(ds, format))
+	}
+	pe(errs...)
+}
+
+func doRemoveDomain() {
+	errs := make([]error, 0)
+	res := make([][]string, 0)
+	header := []string{"domain", "status", "msg"}
+	for _, d := range strings.Split(domains, ",") {
+		ok, err := dnspodapi.RemoveDomain(d)
+		msg := ""
+		if err != nil {
+			errs = append(errs, err)
+			msg = err.Error()
+		}
+		res = append(res, []string{d, fmt.Sprintf("%v", ok), msg})
+	}
+	fmt.Println(mymap.FormatSlices(header, res, format))
+	pe(errs...)
+}
+
+func doInfoDomain() {
+	errs := make([]error, 0)
+	ds := make([]dnspodapi.DomainEntry, 0)
+	for _, d := range strings.Split(domains, ",") {
+		de, err := dnspodapi.GetDomainInfo(d)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if de != nil {
+			ds = append(ds, *de)
+		}
+	}
+	if len(ds) > 0 {
+		fmt.Println(dnspodapi.FormatDomains(ds, format))
+	}
+	pe(errs...)
+}
+
+func doStatusDomain(st string) {
+	errs := make([]error, 0)
+	res := make([][]string, 0)
+	header := []string{"domain", "status", "msg"}
+	for _, d := range strings.Split(domains, ",") {
+		err := dnspodapi.SetDomainStatus(d, st)
+		msg := ""
+		ok := true
+		if err != nil {
+			errs = append(errs, err)
+			msg = err.Error()
+			ok = false
+		}
+		res = append(res, []string{d, fmt.Sprintf("%v", ok), msg})
+	}
+	fmt.Println(mymap.FormatSlices(header, res, format))
+	pe(errs...)
 }

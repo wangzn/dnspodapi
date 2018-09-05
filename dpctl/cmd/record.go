@@ -39,11 +39,11 @@ const (
 )
 
 var (
-	clear      bool
-	recordFile string
-	zone       string
-	act        string
-	format     string
+	recordAct   string
+	clear       bool
+	recordFile  string
+	zone        string
+	forceDomain bool
 )
 
 var (
@@ -62,16 +62,20 @@ var recordCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(recordCmd)
 
-	recordCmd.Flags().BoolVarP(&clear, "clear", "c", false, "clear existed record")
+	recordCmd.PersistentFlags().StringVarP(&recordAct, "action", "a", "list",
+		"record action: [ create | list ]")
 
-	recordCmd.Flags().StringVarP(&act, "action", "a", "list",
-		"record actiom: [ create | list ]")
-
-	recordCmd.Flags().StringVar(&format, "format", "table",
+	recordCmd.PersistentFlags().StringVar(&format, "format", "table",
 		"output format: [ json | table ]")
 
-	recordCmd.Flags().StringVarP(&zone, "zone", "z", "",
-		"zones for records, use ',' for multiple zones, e.g. 'abc.com,def.com'")
+	recordCmd.Flags().BoolVarP(&clear, "clear", "c", false,
+		"clear existed record")
+
+	recordCmd.Flags().BoolVar(&forceDomain, "force-domain", false,
+		"force create new domain if not exist")
+
+	recordCmd.Flags().StringVarP(&zone, "domain", "d", "",
+		"domains for records, use ',' for multiple domains, e.g. 'abc.com,def.com'")
 
 	recordCmd.Flags().StringVarP(&recordFile, "record_file", "f", "",
 		"record file, each line contains 'record type value', e.g. 'www CNAME proxy'")
@@ -79,10 +83,10 @@ func init() {
 
 func runRecordCmd(cmd *cobra.Command, args []string) {
 	if zone == "" {
-		fmt.Println("zone is empty")
+		fmt.Println("domain is empty")
 		os.Exit(1)
 	}
-	switch act {
+	switch recordAct {
 	case "create":
 		doCreateRecord()
 	default:
@@ -193,10 +197,20 @@ func addRecords(rs []*OPRecordEntry, zs string, clear bool) (
 	for i, z := range strings.Split(zs, ",") {
 		zinfo, err := dnspodapi.GetDomainInfo(z)
 		if err != nil {
-			errs = append(errs, err)
-			continue
+			if forceDomain {
+				zinfo, err = ensureDomain(z)
+				if err != nil {
+					// fail to create domain, continue anyway
+					errs = append(errs, err)
+					continue
+				}
+			} else {
+				// no force auto create domain, just continue
+				errs = append(errs, err)
+				continue
+			}
 		}
-		if zinfo.ID == "" {
+		if zinfo == nil || zinfo.ID == "" {
 			errs = append(errs, fmt.Errorf("Fail to get info of domain `%s`", z))
 			continue
 		}
@@ -303,19 +317,19 @@ func addRecordInZone(r *OPRecordEntry, zinfo *dnspodapi.DomainEntry) {
 }
 
 func genRecordParams(r *OPRecordEntry, zinfo *dnspodapi.DomainEntry) dnspodapi.Params {
-	res := make(dnspodapi.Params)
-	res["record_line_id"] = DefaultRecordLineID
+	res := dnspodapi.P()
+	res.Add("record_line_id", DefaultRecordLineID)
 	if r.Type == "CNAME" && strings.HasSuffix(r.Value, ".") {
 		// is local zone
 		r.RealValue = fmt.Sprintf("%s%s", r.Value, zinfo.Name)
 	} else {
 		r.RealValue = r.Value
 	}
-	res["sub_domain"] = r.SubDomain
-	res["record_type"] = r.Type
-	res["value"] = r.RealValue
-	res["domain"] = zinfo.Name
-	res["domain_id"] = zinfo.ID
+	res.Add("sub_domain", r.SubDomain)
+	res.Add("record_type", r.Type)
+	res.Add("value", r.RealValue)
+	res.Add("domain", zinfo.Name)
+	res.Add("domain_id", zinfo.ID)
 	return res
 }
 
@@ -359,4 +373,9 @@ func cprs(rs []*OPRecordEntry) []*OPRecordEntry {
 		ret = append(ret, &v)
 	}
 	return ret
+}
+
+// ensureDomain add a domain if not exist
+func ensureDomain(domain string) (*dnspodapi.DomainEntry, error) {
+	return dnspodapi.CreateDomain(domain)
 }
