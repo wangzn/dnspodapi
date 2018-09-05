@@ -109,14 +109,6 @@ func init() {
 //			list
 //			get $record_id
 func recordReflectFunc(action string, data Params) ActionResult {
-	//pd := url.Values{}
-	//for _, v := range []string{"domain", "record_id", "domain_id", "sub_domain",
-	//	"record_type", "record_line", "record_line_id", "value", "mx", "ttl",
-	//	"status", "weight"} {
-	//	if dn, ok := data[v]; ok {
-	//		pd.Add(v, dn.(string))
-	//	}
-	//}
 	return callReflectFunc(reflect.ValueOf(record), RecordModuleName, action,
 		nil, data)
 }
@@ -126,7 +118,6 @@ func (r Record) List(bs []byte) *RecordListResult {
 	data := new(RecordListResult)
 	err := json.Unmarshal(bs, data)
 	if err != nil {
-		fmt.Println(err.Error())
 		return nil
 	}
 	return data
@@ -181,7 +172,12 @@ func ListRecord(domain string, domainID string) ([]RecordEntry, error) {
 		return nil, res.Err
 	}
 	if ret, ok := res.Data.(*RecordListResult); ok {
-		return ret.Records, nil
+		if ret != nil {
+			if ret.Status.Code == "1" {
+				return ret.Records, nil
+			}
+			return nil, Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
+		}
 	}
 	return nil, Err(ErrInvalidTypeAssertion, "RecordListResult")
 }
@@ -261,7 +257,11 @@ func GetRecordInfo(domain string, domainID string, recordID string) (*RecordEntr
 	}
 	if ret, ok := res.Data.(*RecordInfoResult); ok {
 		if ret != nil {
-			return &ret.Record, nil
+			if ret.Status.Code == "1" {
+				return &ret.Record, nil
+			}
+			return nil,
+				Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
 		}
 		return nil, Err(ErrInvalidTypeAssertion, "RecordInfoResult")
 	}

@@ -224,8 +224,8 @@ func CreateDomainDetail(domain, groupID, isMark string) (*DomainEntry, error) {
 	if ret, ok := res.Data.(*DomainCreateResult); ok {
 		if ret != nil {
 			if ret.Status.Code != "1" {
-				return nil, fmt.Errorf("invalid resp status, msg: %s",
-					ret.Status.Message)
+				return nil,
+					Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
 			}
 			id := ret.Domain.ID
 			if id != "" {
@@ -248,8 +248,8 @@ func GetDomainInfo(name string) (*DomainEntry, error) {
 	if ret, ok := res.Data.(*DomainInfoResult); ok {
 		if ret != nil {
 			if ret.Status.Code != "1" {
-				return nil, fmt.Errorf("invalid resp status, msg: %s",
-					ret.Status.Message)
+				return nil,
+					Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
 			}
 			return &ret.Domain, nil
 		}
@@ -267,8 +267,8 @@ func GetDomainList() ([]DomainEntryIDInt, error) {
 	if ret, ok := res.Data.(*DomainListResult); ok {
 		if ret != nil {
 			if ret.Status.Code != "1" {
-				return nil, fmt.Errorf("invalid resp status, msg: %s",
-					ret.Status.Message)
+				return nil,
+					Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
 			}
 			return ret.Domains, nil
 		}
@@ -289,8 +289,8 @@ func RemoveDomain(name string) (bool, error) {
 			if ret.Status.Code == "1" {
 				return true, nil
 			}
-			return false, fmt.Errorf("remove fail, code: %s, msg: %s",
-				ret.Status.Code, ret.Status.Message)
+			return false,
+				Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
 		}
 	}
 	return false, Err(ErrInvalidTypeAssertion, "DomainRemoveResult")
@@ -316,8 +316,7 @@ func SetDomainStatus(name string, status string) error {
 			if ret.Status.Code == "1" {
 				return nil
 			}
-			return fmt.Errorf("status fail, code: %s, msg: %s",
-				ret.Status.Code, ret.Status.Message)
+			return Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
 		}
 	}
 	return Err(ErrInvalidTypeAssertion, "DomainStatusResult")

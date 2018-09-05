@@ -16,20 +16,21 @@ const InfoModuleName = "info"
 var info Info
 
 // Info defines the struct
-type Info struct {
-	A string
-}
+type Info struct{}
 
 // Version returns version info
 func (i Info) Version(bs []byte) interface{} {
-	var d struct {
-		Status RespCommon `json:"status"`
-	}
-	err := json.Unmarshal(bs, &d)
+	d := new(InfoVersionResult)
+	err := json.Unmarshal(bs, d)
 	if err != nil {
 		return err
 	}
 	return d
+}
+
+// InfoVersionResult defines the API result of info.version
+type InfoVersionResult struct {
+	Status RespCommon `json:"status"`
 }
 
 func init() {
@@ -41,5 +42,23 @@ func init() {
 func infoReflectFunc(action string, data Params) ActionResult {
 	log.Println("in info reflect func, aciton:", action)
 	return callReflectFunc(reflect.ValueOf(info), InfoModuleName, action, nil,
-		P())
+		data)
+}
+
+// GetVersion returns API version
+func GetVersion() (string, error) {
+	res := infoReflectFunc("version", P())
+	if res.Err != nil {
+		return "", res.Err
+	}
+	if ret, ok := res.Data.(*InfoVersionResult); ok {
+		if ret != nil {
+			if ret.Status.Code == "1" {
+				return ret.Status.Message, nil
+			}
+			return "", Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
+		}
+		return "", Err(ErrInvalidTypeAssertion, "InfoVersionResult")
+	}
+	return "", Err(ErrInvalidTypeAssertion, "InfoVersionResult")
 }
