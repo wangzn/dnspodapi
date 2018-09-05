@@ -149,6 +149,7 @@ type OPRecordEntry struct {
 	SubDomain string `json:"sub_domain"`
 	Type      string `json:"type"`
 	Value     string `json:"value"`
+	RealValue string `json:"real_value"`
 	Err       error  `json:"err"`
 	Message   string `json:"message"`
 }
@@ -306,11 +307,13 @@ func genRecordParams(r *OPRecordEntry, zinfo *dnspodapi.DomainEntry) dnspodapi.P
 	res["record_line_id"] = DefaultRecordLineID
 	if r.Type == "CNAME" && strings.HasSuffix(r.Value, ".") {
 		// is local zone
-		r.Value = fmt.Sprintf("%s%s", r.Value, zinfo.Name)
+		r.RealValue = fmt.Sprintf("%s%s", r.Value, zinfo.Name)
+	} else {
+		r.RealValue = r.Value
 	}
 	res["sub_domain"] = r.SubDomain
 	res["record_type"] = r.Type
-	res["value"] = r.Value
+	res["value"] = r.RealValue
 	res["domain"] = zinfo.Name
 	res["domain_id"] = zinfo.ID
 	return res
