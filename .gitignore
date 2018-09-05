@@ -13,3 +13,4 @@
 
 # ctl binary
 dpctl/dpctl
+dpctl/vendor
