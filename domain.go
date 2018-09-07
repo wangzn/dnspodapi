@@ -15,15 +15,6 @@ import (
 	"github.com/wangzn/goutils/structs"
 )
 
-const (
-	// DomainStatusEnable defines the string of `enable` of a domain
-	DomainStatusEnable = "enable"
-	// DomainStatusDisable defines the string of `disable` of a domain
-	DomainStatusDisable = "disable"
-	// DomainStatusUnkown defines the string of `unkown` of a domain
-	DomainStatusUnkown = ""
-)
-
 // DomainEntry defines the API result struct of domain line
 type DomainEntry struct {
 	ID               string `json:"id"`
@@ -301,7 +292,7 @@ func RemoveDomain(name string) (bool, error) {
 // disable: disable, 0, offline, off
 func SetDomainStatus(name string, status string) error {
 	st := verifyStatus(status)
-	if st == DomainStatusUnkown {
+	if st == StatusUnkown {
 		return fmt.Errorf("invalid target status, accept `enable` or `disable`")
 	}
 	data := P()
@@ -376,27 +367,4 @@ func FormatDomainIDInts(rs []DomainEntryIDInt, format string) string {
 		res = b.String()
 	}
 	return res
-}
-
-// enable: enable, 1, online, on
-// disable: disable, 0, offline, off
-func verifyStatus(st string) string {
-	en := map[string]bool{
-		"enable": true,
-		"online": true,
-		"on":     true,
-		"1":      true,
-
-		"disable": false,
-		"offline": false,
-		"off":     false,
-		"0":       false,
-	}
-	if v, ok := en[st]; ok {
-		if v {
-			return DomainStatusEnable
-		}
-		return DomainStatusDisable
-	}
-	return DomainStatusUnkown
 }

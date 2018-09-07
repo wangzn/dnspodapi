@@ -1,8 +1,58 @@
 global:
-  # namespace: "ashdev"
-  api_id: "YOUR_API_ID"
-  api_token: "YOUR_API_TOKEN"
+  log_output: "stdout" # stderr, null
+  format: "table" # json
+  auth: "default" # ashdev
 
-ashdev:
-  api_id: "ashdev_apiid"
-  api_token: "ashdev_apitoken"
+auth:
+  default:
+    api_id: YOUR_API_ID
+    api_token: "YOUR_API_TOKEN"
+  ashdev:
+    api_id: 12345
+    api_token: "ash_dev_apitoken"
+
+playbook:
+  scene1:
+    - auth: "default" # could omit to use default
+      category: "domain"
+      action: "create"
+      subject: "abc.xyz,abcde.xyz"
+      params:
+
+    - auth: "default" # could omit to use default
+      category: "record"
+      action: "import"
+      subject: ""
+      params:
+        domain: "abc.xyz,abcde.xyz"
+        clear: "on"
+        force_domain: "off"
+        record_file: "testdata/record.lst"
+
+    - auth: "default" # could omit to use default
+      category: "record"
+      action: "export"
+      subject: "www,proxy"
+      params:
+        domain: "abc.xyz,abcde.xyz"
+        file_mode: "append" # overwrite, default is exit for no damage
+        record_file: "testdata/record.lst"
+
+  scene2:
+    - auth: "ashdev"
+      category: "domain"
+      action: "remove"
+      subject: "abc.xyz"
+      params:
+    
+    - auth: "ashdev"
+      category: "record"
+      action: "create"
+      subject: "www,proxy"
+      params:
+        domain: "abc.xyz"
+        type: "A"
+        value: "10.0.0.1"
+
+  
+

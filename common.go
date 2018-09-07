@@ -10,6 +10,15 @@ import (
 	"strings"
 )
 
+const (
+	// StatusEnable defines the string of `enable` of a domain
+	StatusEnable = "enable"
+	// StatusDisable defines the string of `disable` of a domain
+	StatusDisable = "disable"
+	// StatusUnkown defines the string of `unkown` of a domain
+	StatusUnkown = ""
+)
+
 // RespCommon defines common struct in http endpoint
 type RespCommon struct {
 	Code      string `json:"code"`
@@ -53,4 +62,29 @@ func ErrActionResult(en int, args ...interface{}) ActionResult {
 		Code: en,
 		Err:  Err(en, args...),
 	}
+}
+
+// verifyStatus translate un-formatted string into enable or disable
+// enable: enable, 1, online, on
+// disable: disable, 0, offline, off
+func verifyStatus(st string) string {
+	st = strings.ToLower(st)
+	en := map[string]bool{
+		"enable": true,
+		"online": true,
+		"on":     true,
+		"1":      true,
+
+		"disable": false,
+		"offline": false,
+		"off":     false,
+		"0":       false,
+	}
+	if v, ok := en[st]; ok {
+		if v {
+			return StatusEnable
+		}
+		return StatusDisable
+	}
+	return StatusUnkown
 }

@@ -70,28 +70,63 @@ func init() {
 }
 
 func runDomainCmd(cmd *cobra.Command, args []string) {
-	checkDomainParams()
-	switch domainAct {
+	r := DomainActionRunner{
+		Domain:   domains,
+		Action:   domainAct,
+		APIID:    apiID,
+		APIToken: apiToken,
+	}
+	r.Run()
+}
+
+// DomainActionRunner defines the runner to run domain action
+type DomainActionRunner struct {
+	Domain   string
+	Action   string
+	Params   map[string]string
+	APIID    int
+	APIToken string
+}
+
+// Run starts to run action
+func (r *DomainActionRunner) Run() {
+	r.run()
+}
+
+// Name returns runner name
+func (r *DomainActionRunner) Name() string {
+	return fmt.Sprintf("%s domain `%s`", strings.Title(r.Action), r.Domain)
+}
+
+// Detail returns detail information
+func (r *DomainActionRunner) Detail() string {
+	return r.Name()
+}
+
+func (r *DomainActionRunner) run() {
+	dnspodapi.SetAPIToken(r.APIID, r.APIToken)
+	r.checkDomainParams()
+	switch r.Action {
 	case "list":
 		doListDomain()
 	case "create":
-		doCreateDomain()
+		doCreateDomain(r.Domain)
 	case "remove":
-		doRemoveDomain()
+		doRemoveDomain(r.Domain)
 	case "info":
-		doInfoDomain()
+		doInfoDomain(r.Domain)
 	case "enable":
-		doStatusDomain("enable")
+		doStatusDomain(r.Domain, "enable")
 	case "disable":
-		doStatusDomain("disable")
+		doStatusDomain(r.Domain, "disable")
 	default:
 		doListDomain()
 	}
 }
 
-func checkDomainParams() {
-	if domainAct != "list" {
-		if domains == "" {
+func (r *DomainActionRunner) checkDomainParams() {
+	if r.Action != "list" {
+		if r.Domain == "" {
 			fmt.Println("domains is empty")
 			os.Exit(1)
 		}
@@ -106,10 +141,10 @@ func doListDomain() {
 	fmt.Println(dnspodapi.FormatDomainIDInts(res, format))
 }
 
-func doCreateDomain() {
+func doCreateDomain(dms string) {
 	errs := make([]error, 0)
 	ds := make([]dnspodapi.DomainEntry, 0)
-	for _, d := range strings.Split(domains, ",") {
+	for _, d := range strings.Split(dms, ",") {
 		de, err := dnspodapi.CreateDomain(d)
 		if err != nil {
 			errs = append(errs, err)
@@ -124,11 +159,11 @@ func doCreateDomain() {
 	pe(errs...)
 }
 
-func doRemoveDomain() {
+func doRemoveDomain(dms string) {
 	errs := make([]error, 0)
 	res := make([][]string, 0)
 	header := []string{"domain", "status", "msg"}
-	for _, d := range strings.Split(domains, ",") {
+	for _, d := range strings.Split(dms, ",") {
 		ok, err := dnspodapi.RemoveDomain(d)
 		msg := ""
 		if err != nil {
@@ -141,10 +176,10 @@ func doRemoveDomain() {
 	pe(errs...)
 }
 
-func doInfoDomain() {
+func doInfoDomain(dms string) {
 	errs := make([]error, 0)
 	ds := make([]dnspodapi.DomainEntry, 0)
-	for _, d := range strings.Split(domains, ",") {
+	for _, d := range strings.Split(dms, ",") {
 		de, err := dnspodapi.GetDomainInfo(d)
 		if err != nil {
 			errs = append(errs, err)
@@ -159,11 +194,11 @@ func doInfoDomain() {
 	pe(errs...)
 }
 
-func doStatusDomain(st string) {
+func doStatusDomain(dms, st string) {
 	errs := make([]error, 0)
 	res := make([][]string, 0)
 	header := []string{"domain", "status", "msg"}
-	for _, d := range strings.Split(domains, ",") {
+	for _, d := range strings.Split(dms, ",") {
 		err := dnspodapi.SetDomainStatus(d, st)
 		msg := ""
 		ok := true
