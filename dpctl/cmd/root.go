@@ -38,10 +38,11 @@ const (
 )
 
 var (
-	cfgFile string
-	format  string
-	cfg     *dnspodapi.Config
-	err     error
+	cfgFile   string
+	format    string
+	logOutput string
+	cfg       *dnspodapi.Config
+	err       error
 )
 
 var (
@@ -80,6 +81,9 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&format, "format", "table",
 		"output format: [ json | table ]")
+
+	rootCmd.PersistentFlags().StringVar(&logOutput, "log", "null",
+		"where to output log: [ null | stdout | stderr ]")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
@@ -113,6 +117,10 @@ func initFormat(f string) {
 }
 
 func initLog(l string) {
+	if logOutput != "" {
+		// cli log output first
+		l = logOutput
+	}
 	switch l {
 	case "stdout":
 		log.SetOutput(os.Stdout)
