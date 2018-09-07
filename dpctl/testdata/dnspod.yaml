@@ -29,6 +29,15 @@ playbook:
         force_domain: "off"
         record_file: "testdata/record.lst"
 
+    - auth: "default" # could omit to use default
+      category: "record"
+      action: "export"
+      subject: "www,proxy"
+      params:
+        domain: "abc.xyz,abcde.xyz"
+        file_mode: "append" # overwrite, default is exit for no damage
+        record_file: "testdata/record.lst"
+
   scene2:
     - auth: "ashdev"
       category: "domain"
@@ -38,13 +47,12 @@ playbook:
     
     - auth: "ashdev"
       category: "record"
-      action: "import"
-      subject: ""
+      action: "create"
+      subject: "www,proxy"
       params:
         domain: "abc.xyz"
-        clear: "off"
-        force_domain: "off"
-        record_file: "testdata/record.lst"
+        type: "A"
+        value: "10.0.0.1"
 
   
 
