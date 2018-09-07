@@ -378,7 +378,6 @@ func (r *RecordActionRunner) doStatusRecord() {
 		if ers != nil && len(ers) > 0 {
 			errs = append(errs, ers...)
 		}
-		fmt.Println(rs)
 		for _, record := range rs {
 			err := dnspodapi.SetRecordStatus(zinfo.Name, zinfo.ID, record.ID,
 				r.Action)
@@ -649,6 +648,10 @@ func getFilePointer(fn, fm string) (*os.File, error) {
 	case "append":
 		return os.OpenFile(fn, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	case "overwrite":
+		err := os.Remove(fn)
+		if err != nil {
+			return nil, err
+		}
 		return os.OpenFile(fn, os.O_CREATE|os.O_WRONLY, 0644)
 	default:
 		if sys.FNExist(fn) {
