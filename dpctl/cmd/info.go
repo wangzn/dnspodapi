@@ -44,6 +44,34 @@ func init() {
 }
 
 func runInfoCmd(cmd *cobra.Command, args []string) {
+	r := InfoActionRunner{}
+	r.Run()
+}
+
+// InfoActionRunner defines the runner to run info action
+type InfoActionRunner struct {
+	Action   string
+	Params   map[string]string
+	APIID    int
+	APIToken string
+}
+
+// Run starts to run action
+func (r *InfoActionRunner) Run() {
+	r.run()
+}
+
+// Name returns runner name
+func (r *InfoActionRunner) Name() string {
+	return fmt.Sprintf("Info running...")
+}
+
+// Detail returns detail information
+func (r *InfoActionRunner) Detail() string {
+	return fmt.Sprintf("Get API version info")
+}
+
+func (r *InfoActionRunner) run() {
 	ver, err := dnspodapi.GetVersion()
 	if err != nil {
 		pe(err)

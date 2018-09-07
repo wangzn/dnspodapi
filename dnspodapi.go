@@ -82,16 +82,16 @@ func Register(module string, rf ReflectFunc) error {
 }
 
 // New returns a new DPA pointer
-func New(appid int, token string) *DPA {
-	c := &Config{
-		appid: appid,
-		token: token,
-	}
-	SetAPIToken(appid, token)
-	return &DPA{
-		config: c,
-	}
-}
+//func New(appid int, token string) *DPA {
+//	c := &Config{
+//		appid: appid,
+//		token: token,
+//	}
+//	SetAPIToken(appid, token)
+//	return &DPA{
+//		config: c,
+//	}
+//}
 
 // SetAPIToken set appid and token
 func SetAPIToken(appid int, token string) {
