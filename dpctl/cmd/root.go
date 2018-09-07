@@ -19,13 +19,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
+	"path/filepath"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/wangzn/dnspodapi"
-	"github.com/wangzn/goutils/mymap"
 )
 
 const (
@@ -42,6 +40,8 @@ const (
 var (
 	cfgFile string
 	format  string
+	cfg     *dnspodapi.Config
+	err     error
 )
 
 var (
@@ -87,47 +87,24 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
+	if cfgFile == "" {
 		home, err := homedir.Dir()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		// Search config in home directory with name ".dnspod" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".dnspod")
+		cfgFile = filepath.Join(home, ".dnspod.yaml")
 	}
-
-	viper.AutomaticEnv() // read in environment variables that match
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err != nil {
-		panic(err)
-		// fmt.Println("-----Using config file:", viper.ConfigFileUsed())
-
-	} else {
-		// init global id and token for default
-		global := viper.GetStringMapString(GlobalNamespace)
-		initAPIIDToken(GlobalNamespace)
-		ns := GlobalNamespace
-		if m, ok := global["namespace"]; ok {
-			ns = m
-		}
-		initLog(ns)
-		initAPIIDToken(ns)
-		checkAPIIDToken()
-		dnspodapi.SetAPIToken(apiID, apiToken)
+	cfg, err = dnspodapi.ParseYamlFile(cfgFile)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
+	initLog(cfg.Global.LogOutput)
+	initAuth(cfg.Global.Auth, cfg.Auth)
 }
 
-func initLog(ns string) {
-	c := viper.GetStringMapString(ns)
-	l := mymap.StringMustString(c, LogOutput)
+func initLog(l string) {
 	switch l {
 	case "stdout":
 		log.SetOutput(os.Stdout)
@@ -138,24 +115,15 @@ func initLog(ns string) {
 	}
 }
 
-func initAPIIDToken(ns string) {
-	c := viper.GetStringMapString(ns)
-	apiIDStr = mymap.StringMustString(c, APIIDField)
-	apiToken = mymap.StringMustString(c, APITokenField)
-}
-
-func checkAPIIDToken() {
-	if apiIDStr == "" {
-		panic("api_id is empty")
+func initAuth(key string, auths dnspodapi.Auth) {
+	if key == "" {
+		key = "default"
 	}
-	if apiToken == "" {
-		panic("api_token is empty")
+	if ae, ok := auths[key]; ok {
+		apiID = ae.APIID
+		apiToken = ae.APIToken
 	}
-	var err error
-	apiID, err = strconv.Atoi(apiIDStr)
-	if err != nil {
-		panic(err)
-	}
+	dnspodapi.SetAPIToken(apiID, apiToken)
 }
 
 // APIID returns apiID

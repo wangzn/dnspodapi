@@ -26,6 +26,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"github.com/wangzn/dnspodapi"
+	"github.com/wangzn/goutils/mymap"
 	"github.com/wangzn/goutils/structs"
 )
 
@@ -39,6 +40,9 @@ const (
 )
 
 var (
+	records     string
+	typ         string
+	value       string
 	recordAct   string
 	clear       bool
 	recordFile  string
@@ -62,8 +66,17 @@ var recordCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(recordCmd)
 
+	recordCmd.PersistentFlags().StringVarP(&records, "record", "r", "",
+		"records to operate")
+
+	recordCmd.PersistentFlags().StringVarP(&typ, "type", "t", "",
+		"record type, [ CNAME | A | MX | AAAA ]")
+
+	recordCmd.PersistentFlags().StringVarP(&value, "value", "v", "",
+		"record value")
+
 	recordCmd.PersistentFlags().StringVarP(&recordAct, "action", "a", "list",
-		"record action: [ create | list ]")
+		"record action: [ create | remove | info | list | import | export ]")
 
 	recordCmd.PersistentFlags().StringVar(&format, "format", "table",
 		"output format: [ json | table ]")
@@ -82,29 +95,119 @@ func init() {
 }
 
 func runRecordCmd(cmd *cobra.Command, args []string) {
-	if zone == "" {
+	r := RecordActionRunner{
+		Record:   records,
+		Action:   recordAct,
+		APIID:    apiID,
+		APIToken: apiToken,
+		Params:   fillRecordParams(),
+	}
+	r.Run()
+}
+
+func fillRecordParams() map[string]string {
+	m := make(map[string]string)
+	m["domain"] = zone
+	m["value"] = value
+	m["type"] = typ
+	m["clear"] = "off"
+	if clear {
+		m["clear"] = "on"
+	}
+	m["force_domain"] = "off"
+	if forceDomain {
+		m["force_domain"] = "on"
+	}
+	m["record_file"] = recordFile
+	return m
+}
+
+// RecordActionRunner defines the runner to run record action
+type RecordActionRunner struct {
+	Record   string
+	Action   string
+	Params   map[string]string
+	APIID    int
+	APIToken string
+}
+
+// Run starts to run action
+func (r *RecordActionRunner) Run() {
+	r.run()
+}
+
+// Name returns runner name
+func (r *RecordActionRunner) Name() string {
+	return fmt.Sprintf("%s record `%s` of domain `%s`",
+		strings.Title(r.Action), r.Record,
+		mymap.StringMustString(r.Params, "domain"))
+}
+
+// Detail returns detail information
+func (r *RecordActionRunner) Detail() string {
+	if r.Action != "import" {
+		return r.Name()
+	}
+	return fmt.Sprintf("%s record into domain `%s` from file `%s`, "+
+		"with clear flag `%s` and force-domain flag `%s`",
+		strings.Title(r.Action),
+		mymap.StringMustString(r.Params, "domain"),
+		mymap.StringMustString(r.Params, "record_file"),
+		mymap.StringMustString(r.Params, "clear"),
+		mymap.StringMustString(r.Params, "force_domain"))
+}
+
+func (r *RecordActionRunner) run() {
+	dms := mymap.StringMustString(r.Params, "domain")
+	if dms == "" {
 		fmt.Println("domain is empty")
 		os.Exit(1)
 	}
-	switch recordAct {
+	switch r.Action {
 	case "create":
 		doCreateRecord()
+	case "remove":
+		doRemoveRecord()
+	case "info":
+		doInfoRecord()
+	case "export":
+		doExportRecord()
+	case "import":
+		doImportRecord(r.Params)
 	default:
-		doListRecord()
+		doListRecord(r.Params)
 	}
 }
 
-func doListRecord() {
+func doCreateRecord() {
+	// TODO:
+}
+
+func doRemoveRecord() {
+	// TODO:
+}
+
+func doInfoRecord() {
+	// TODO:
+}
+
+func doExportRecord() {
+	// TODO:
+}
+
+func doListRecord(data map[string]string) {
 	//res := make([]dnspodapi.RecordEntry, 0)
+	dms := mymap.StringMustString(data, "domain")
 	errs := make([]error, 0)
-	for _, z := range strings.Split(zone, ",") {
+	for _, z := range strings.Split(dms, ",") {
 		zinfo, err := dnspodapi.GetDomainInfo(z)
 		if err != nil {
 			errs = append(errs, err)
 		}
 		if zinfo != nil {
 			if zinfo.ID == "" {
-				errs = append(errs, fmt.Errorf("Fail to get info of domain `%s`", z))
+				errs = append(errs, fmt.Errorf("Fail to get domain info: `%s`",
+					z))
 				continue
 			}
 			//fmt.Println(dnspodapi.FormatDomains([]dnspodapi.DomainEntry{*zinfo},
@@ -112,7 +215,7 @@ func doListRecord() {
 			//fmt.Printf("Domain `%s`, ID: %s, list records: \n", zinfo.Name,
 			//	zinfo.ID)
 		} else {
-			errs = append(errs, fmt.Errorf("Fail to get info of domain `%s`", z))
+			errs = append(errs, fmt.Errorf("Fail to get domain info: `%s`", z))
 			continue
 		}
 		rs, err := dnspodapi.ListRecord(z, "")
@@ -128,13 +231,27 @@ func doListRecord() {
 	}
 }
 
-func doCreateRecord() {
-	rs, err := loadRecordFile(recordFile)
+func doImportRecord(data map[string]string) {
+	fn := mymap.StringMustString(data, "record_file")
+	cl := mymap.StringMustString(data, "clear")
+	fd := mymap.StringMustString(data, "force_domain")
+	dms := mymap.StringMustString(data, "domain")
+	clb := false
+	fdb := false
+	if cl == "on" {
+		clb = true
+	}
+	if fd == "on" {
+		fdb = true
+	}
+
+	rs, err := loadRecordFile(fn)
 	if err != nil {
 		pe(err)
 		return
 	}
-	res, cls, errs := addRecords(rs, zone, clear)
+
+	res, cls, errs := addRecords(rs, dms, clb, fdb)
 	//	fmt.Println("Created records:")
 	fmt.Println(FormatOps(res, format, "Created records"))
 	if cls != nil && len(cls) > 0 {
@@ -188,7 +305,7 @@ func loadRecordFile(f string) ([]*OPRecordEntry, error) {
 
 // addRecords add all record into multi-zones
 // returns all cleared records info if clear is true
-func addRecords(rs []*OPRecordEntry, zs string, clear bool) (
+func addRecords(rs []*OPRecordEntry, zs string, clear, autoDomain bool) (
 	[]*OPRecordEntry, []*OPRecordEntry, []error,
 ) {
 	clret := make([]*OPRecordEntry, 0)
@@ -197,7 +314,7 @@ func addRecords(rs []*OPRecordEntry, zs string, clear bool) (
 	for i, z := range strings.Split(zs, ",") {
 		zinfo, err := dnspodapi.GetDomainInfo(z)
 		if err != nil {
-			if forceDomain {
+			if autoDomain {
 				zinfo, err = ensureDomain(z)
 				if err != nil {
 					// fail to create domain, continue anyway
@@ -211,7 +328,8 @@ func addRecords(rs []*OPRecordEntry, zs string, clear bool) (
 			}
 		}
 		if zinfo == nil || zinfo.ID == "" {
-			errs = append(errs, fmt.Errorf("Fail to get info of domain `%s`", z))
+			errs = append(errs, fmt.Errorf("Fail to get info of domain `%s`",
+				z))
 			continue
 		}
 		zrs, err := dnspodapi.ListRecord(z, zinfo.ID)
@@ -266,7 +384,8 @@ func addRecordsInZone(rs []*OPRecordEntry, zrs []dnspodapi.RecordEntry,
 }
 
 // checkSubdomain returns all records with same subdomain and type
-func checkSubdomain(r *OPRecordEntry, zrs []dnspodapi.RecordEntry) []dnspodapi.RecordEntry {
+func checkSubdomain(r *OPRecordEntry, zrs []dnspodapi.RecordEntry,
+) []dnspodapi.RecordEntry {
 	ret := make([]dnspodapi.RecordEntry, 0)
 	for _, v := range zrs {
 		if r.SubDomain == v.Name && r.Type == v.Type {
@@ -276,7 +395,8 @@ func checkSubdomain(r *OPRecordEntry, zrs []dnspodapi.RecordEntry) []dnspodapi.R
 	return ret
 }
 
-func clearSubdomain(domain string, domainID string, zrs []dnspodapi.RecordEntry) []*OPRecordEntry {
+func clearSubdomain(domain string, domainID string, zrs []dnspodapi.RecordEntry,
+) []*OPRecordEntry {
 	ret := make([]*OPRecordEntry, 0)
 	for _, v := range zrs {
 		or := &OPRecordEntry{
@@ -316,7 +436,8 @@ func addRecordInZone(r *OPRecordEntry, zinfo *dnspodapi.DomainEntry) {
 	r.DomainID = zinfo.ID
 }
 
-func genRecordParams(r *OPRecordEntry, zinfo *dnspodapi.DomainEntry) dnspodapi.Params {
+func genRecordParams(r *OPRecordEntry, zinfo *dnspodapi.DomainEntry,
+) dnspodapi.Params {
 	res := dnspodapi.P()
 	res.Add("record_line_id", DefaultRecordLineID)
 	if r.Type == "CNAME" && strings.HasSuffix(r.Value, ".") {
