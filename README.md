@@ -63,7 +63,7 @@ dpctl record -a info -d ashtray.wang -r proxy,proxy11,proxy12
 
 # disalbe these records and enable them again
 dpctl record -a disable -d ashtray.wang -r proxy,proxy11,proxy12
-dpctl record -a eanble -d ashtray.wang -r proxy,proxy11,proxy12
+dpctl record -a enable -d ashtray.wang -r proxy,proxy11,proxy12
 
 # create a record
 dpctl  record -a create -d ashtray.wang -r testcreate -t A -v 1.1.1.1
