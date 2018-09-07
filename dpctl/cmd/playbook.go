@@ -74,7 +74,8 @@ type PlaybookRunner struct {
 }
 
 // NewPlaybookRunner returns a new PlaybookRunner pointer
-func NewPlaybookRunner(action, scene string, cfg dnspodapi.Scene, auths dnspodapi.Auth,
+func NewPlaybookRunner(action, scene string, cfg dnspodapi.Scene,
+	auths dnspodapi.Auth,
 ) *PlaybookRunner {
 	pbr := PlaybookRunner{
 		Scene:  scene,
@@ -83,6 +84,9 @@ func NewPlaybookRunner(action, scene string, cfg dnspodapi.Scene, auths dnspodap
 	ars := make([]ActionRunner, 0)
 	for _, a := range cfg {
 		var ar ActionRunner
+		if a.Auth == "" {
+			a.Auth = "default"
+		}
 		if _, ok := auths[a.Auth]; !ok {
 			continue
 		}
