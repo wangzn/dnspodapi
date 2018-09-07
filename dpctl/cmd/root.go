@@ -100,8 +100,16 @@ func initConfig() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	initFormat(cfg.Global.Format)
 	initLog(cfg.Global.LogOutput)
 	initAuth(cfg.Global.Auth, cfg.Auth)
+}
+
+func initFormat(f string) {
+	// cli format first
+	if format == "" {
+		format = f
+	}
 }
 
 func initLog(l string) {
