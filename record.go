@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/wangzn/goutils/structs"
@@ -32,6 +33,33 @@ type RecordEntry struct {
 	UseAqb        string `json:"use_aqb"`
 	MX            string `json:"mx"`
 	Hold          string `json:"hold"`
+}
+
+// RecordEntryIDInt is same as RecordEntry but ID field is int
+type RecordEntryIDInt struct {
+	ID            int    `json:"id"`
+	TTL           string `json:"ttl"`
+	Value         string `json:"value"`
+	Enabled       string `json:"enabled"`
+	Status        string `json:"status"`
+	UpdatedOn     string `json:"updated_on"`
+	Name          string `json:"name"`
+	Line          string `json:"line"`
+	LineID        string `json:"line_id"`
+	Type          string `json:"type"`
+	Weight        string `json:"weight"`
+	MonitorStatus string `json:"monitor_status"`
+	Remark        string `json:"remark"`
+	UseAqb        string `json:"use_aqb"`
+	MX            string `json:"mx"`
+	Hold          string `json:"hold"`
+}
+
+// ExportLine returns a string line for export
+func (r RecordEntry) ExportLine() string {
+	f := []string{r.Name, r.Type, r.Value, r.ID, r.TTL, r.Line, r.LineID,
+		r.Enabled, r.Status, r.Weight, r.MonitorStatus, r.Remark}
+	return strings.Join(f, " ")
 }
 
 // RecordDomainEntry defines the `domain field in `list`
@@ -87,6 +115,12 @@ type RecordCreateOrModifyResult struct {
 // RecordRemoveResult defines the API result of `remove`
 type RecordRemoveResult struct {
 	Status RespCommon `json:"status"`
+}
+
+// RecordStatusResult defines the API result of `status`
+type RecordStatusResult struct {
+	Status RespCommon       `json:"status"`
+	Record RecordEntryIDInt `json:"record"`
 }
 
 const (
@@ -151,6 +185,16 @@ func (r Record) Modify(bs []byte) *RecordCreateOrModifyResult {
 // Remove returns removed record
 func (r Record) Remove(bs []byte) *RecordRemoveResult {
 	data := new(RecordRemoveResult)
+	err := json.Unmarshal(bs, data)
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+// Status set status of a record
+func (r Record) Status(bs []byte) *RecordStatusResult {
+	data := new(RecordStatusResult)
 	err := json.Unmarshal(bs, data)
 	if err != nil {
 		return nil
@@ -266,6 +310,36 @@ func GetRecordInfo(domain string, domainID string, recordID string) (*RecordEntr
 		return nil, Err(ErrInvalidTypeAssertion, "RecordInfoResult")
 	}
 	return nil, Err(ErrInvalidTypeAssertion, "RecordInfoResult")
+}
+
+// SetRecordStatus set record status 'enable|disable'
+// enable: enable, 1, online, on
+// disable: disable, 0, offline, off
+func SetRecordStatus(domain, domainID, recordID, status string) error {
+	st := verifyStatus(status)
+	if st == StatusUnkown {
+		return fmt.Errorf("invalid target status, accept `enable` or `disable`")
+	}
+	data := P()
+	data.Add("domain", domain)
+	if domainID != "" {
+		data.Add("domainID", domainID)
+	}
+	data.Add("record_id", recordID)
+	data.Add("status", st)
+	res := recordReflectFunc("status", data)
+	if res.Err != nil {
+		return res.Err
+	}
+	if ret, ok := res.Data.(*RecordStatusResult); ok {
+		if ret != nil {
+			if ret.Status.Code == "1" {
+				return nil
+			}
+			return Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
+		}
+	}
+	return Err(ErrInvalidTypeAssertion, "RecordStatusResult")
 }
 
 // FormatRecords returns output string
