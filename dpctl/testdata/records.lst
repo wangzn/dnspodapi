@@ -1,4 +1,1 @@
-proxy12 A 8.8.8.12
-www21 CNAME proxy6.
-www22 CNAME proxy6.abc.com
-proxy13 A 8.8.8.31
+www A 1.1.1.1
