@@ -530,7 +530,9 @@ func checkSubdomain(r *OPRecordEntry, zrs []dnspodapi.RecordEntry,
 ) []dnspodapi.RecordEntry {
 	ret := make([]dnspodapi.RecordEntry, 0)
 	for _, v := range zrs {
-		if r.SubDomain == v.Name && r.Type == v.Type {
+		// if r.SubDomain == v.Name && r.Type == v.Type {
+		if r.SubDomain == v.Name {
+			// TODO: use more strict conflict test in this case
 			ret = append(ret, v)
 		}
 	}
