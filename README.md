@@ -68,11 +68,14 @@ dpctl record -a enable -d ashtray.wang -r proxy,proxy11,proxy12
 # create a record
 dpctl  record -a create -d ashtray.wang -r testcreate -t A -v 1.1.1.1
 
+# createa record with TTL 6000
+dpctl  record -a create -d ashtray.wang -r testcreate -t A -v 1.1.1.1 -T 6000
+
 ## import records from local file but DO NOT CLEAR conflict records
 dpctl record -a import -d ashtray.wang -f testdata/records.lst
 
 # import records from local file and CLEAR conflict ones
-dpctl record -a import -d ashtray.wang -f testdata/records.lst -c
+dpctl record -a import -d ashtray.wang -f testdata/records.lst --clear
 
 # import record and force create domain if not exist
 dpctl record -a import -d ashtray.wang,abcde.xyz -f testdata/records.lst --force-domain
@@ -83,7 +86,24 @@ dpctl record -d ashtray.wang -a export -f /dev/stdout --export-file-mode append
 # export records to file, with records filter www21,www22, and overwrite local file if exist
 dpctl record -d ashtray.wang -a export -f testdata/export.lst --export-file-mode overwrite -r www11,www12
 
+# ensure records defined in a file, and import into a domain
+dpctl record -a ensure -d abc.xyz -f testdata/records.lst 
+
+# ensure records defined in a file, and import into a domain, clear all conflict records, clear records not defined in `records.lst`, and clear NS record of @
+dpctl record -a ensure -d abc.xyz -f testdata/records.lst --clear --exclude --force-domain
+
 ```
+
+### Variable support in record file
+
+```bash
+> tail -n 2 testdata/records.lst
+cdn1 CNAME proxy1.
+cdn2 CNAME www.{DOMAIN}.cdn.com
+```
+
+if the domain variable is `abc.xyz`, then `cdn1` will __CNAME__ to `proxy1.abc.xyz`,
+and `cdn2` will __CNAME__ to `www.abc.xyz.cdn.com`
 
 ### Playbook utils
 We can predefined some common used cmds into playbook (named as __scene__ ), and reuse them in short command.

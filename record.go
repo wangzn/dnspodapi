@@ -57,7 +57,7 @@ type RecordEntryIDInt struct {
 
 // ExportLine returns a string line for export
 func (r RecordEntry) ExportLine() string {
-	f := []string{r.Name, r.Type, r.Value, r.ID, r.TTL, r.Line, r.LineID,
+	f := []string{r.Name, r.Type, r.Value, r.TTL, r.ID, r.Line, r.LineID,
 		r.Enabled, r.Status, r.Weight, r.MonitorStatus, r.Remark}
 	return strings.Join(f, " ")
 }
