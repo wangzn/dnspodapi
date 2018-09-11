@@ -220,7 +220,8 @@ func ListRecord(domain string, domainID string) ([]RecordEntry, error) {
 			if ret.Status.Code == "1" {
 				return ret.Records, nil
 			}
-			return nil, Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
+			return nil, Err(ErrInvalidStatus, "Record.List", ret.Status.Code,
+				ret.Status.Message)
 		}
 	}
 	return nil, Err(ErrInvalidTypeAssertion, "RecordListResult")
@@ -234,7 +235,13 @@ func CreateRecord(domain string, domainID string, data Params) (
 		return nil, res.Err
 	}
 	if ret, ok := res.Data.(*RecordCreateOrModifyResult); ok {
-		return GetRecordInfo(domain, domainID, ret.Record.ID)
+		if ret != nil {
+			if ret.Status.Code == "1" {
+				return GetRecordInfo(domain, domainID, ret.Record.ID)
+			}
+			return nil, Err(ErrInvalidStatus, "Record.Create", ret.Status.Code,
+				ret.Status.Message)
+		}
 	}
 	return nil, Err(ErrInvalidTypeAssertion, "RecordCreateResult")
 }
@@ -280,7 +287,8 @@ func RemoveRecord(domain string, domainID string, recordID string) (bool, error)
 		if ret.Status.Code == "1" {
 			return true, nil
 		}
-		return false, Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
+		return false, Err(ErrInvalidStatus, "Record.Remove", ret.Status.Code,
+			ret.Status.Message)
 	}
 	return false, Err(ErrInvalidTypeAssertion, "RecordRemoveResult")
 }
@@ -305,7 +313,8 @@ func GetRecordInfo(domain string, domainID string, recordID string) (*RecordEntr
 				return &ret.Record, nil
 			}
 			return nil,
-				Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
+				Err(ErrInvalidStatus, "Record.Info", ret.Status.Code,
+					ret.Status.Message)
 		}
 		return nil, Err(ErrInvalidTypeAssertion, "RecordInfoResult")
 	}
@@ -336,7 +345,8 @@ func SetRecordStatus(domain, domainID, recordID, status string) error {
 			if ret.Status.Code == "1" {
 				return nil
 			}
-			return Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
+			return Err(ErrInvalidStatus, "Record.Status", ret.Status.Code,
+				ret.Status.Message)
 		}
 	}
 	return Err(ErrInvalidTypeAssertion, "RecordStatusResult")

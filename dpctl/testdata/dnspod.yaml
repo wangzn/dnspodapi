@@ -12,6 +12,19 @@ auth:
     api_token: "ash_dev_apitoken"
 
 playbook:
+  www:
+    - auth: "default"
+      category: "record"
+      action: "ensure"
+      subject: ""
+      params:
+        domain: "abc.xyz,abcde.xyz"
+        clear: "on"
+        force_domain: "on"
+        exclude: "on"
+        force_clear_ns: "off"
+        record_file: "testdata/records.lst"
+
   scene1:
     - auth: "default" # could omit to use default
       category: "domain"

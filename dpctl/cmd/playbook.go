@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
 	"github.com/wangzn/dnspodapi"
 )
 
@@ -161,6 +162,7 @@ func newRecordRunner(a dnspodapi.ActionEntry, auth dnspodapi.AuthEntry,
 		APIID:    auth.APIID,
 		APIToken: auth.APIToken,
 	}
+	fillRecordFlags(&r, a.Params)
 	return &r
 }
 
