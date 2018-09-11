@@ -40,6 +40,10 @@ const (
 	RecordActionRemove = "remove"
 	// RecordActionModify defines OPModify
 	RecordActionModify = "modify"
+	// RecordActionImport defines OPImport
+	RecordActionImport = "import"
+	// RecordActionExport defines OPExport
+	RecordActionExport = "export"
 )
 
 const (
@@ -61,6 +65,7 @@ var (
 	recordFile     string
 	zone           string
 	exportFileMode string
+	ttl            string
 	clearConflict  bool
 	forceDomain    bool
 	exclude        bool
@@ -70,6 +75,10 @@ var (
 var (
 	// DefaultRecordLineID defines the default record_line_id, 0 is "默认"
 	DefaultRecordLineID = "0"
+	// DefaultTTL defines the default TTL value
+	DefaultTTL = "600"
+	// CNAMEMagicString defines the magic string in value to replace in CNAME
+	CNAMEMagicString = "{DOMAIN}"
 )
 
 // recordCmd represents the record command
@@ -92,13 +101,16 @@ func init() {
 	recordCmd.PersistentFlags().StringVarP(&value, "value", "v", "",
 		"record value")
 
+	recordCmd.PersistentFlags().StringVarP(&ttl, "TTL", "T", "600",
+		"record TTL")
+
 	recordCmd.PersistentFlags().StringVarP(&recordAct, "action", "a", "list",
 		"record action: [ ensure | create | remove | info | list | import | export | enable | disable ]")
 
 	recordCmd.PersistentFlags().StringVar(&format, "format", "table",
 		"output format: [ json | table ]")
 
-	recordCmd.Flags().BoolVarP(&clearConflict, "clear", "c", false,
+	recordCmd.Flags().BoolVar(&clearConflict, "clear", false,
 		"clear conflict existed record when import")
 
 	recordCmd.Flags().BoolVar(&forceDomain, "force-domain", false,
@@ -137,6 +149,7 @@ func fillRecordParams(r *RecordActionRunner) {
 	m["domain"] = zone
 	m["value"] = value
 	m["type"] = typ
+	m["ttl"] = ttl
 	m["clear"] = "off"
 	if clearConflict {
 		m["clear"] = "on"
@@ -289,11 +302,16 @@ func (r *RecordActionRunner) toOPRecordEntry() []*OPRecordEntry {
 	res := make([]*OPRecordEntry, 0)
 	typ := mymap.StringMustString(r.Params, "type")
 	val := mymap.StringMustString(r.Params, "value")
+	ttl := mymap.StringMustString(r.Params, "ttl")
+	if ttl == "" {
+		ttl = DefaultTTL
+	}
 	for _, record := range strings.Split(r.Record, ",") {
 		re := &OPRecordEntry{
 			SubDomain: record,
 			Type:      typ,
 			Value:     val,
+			TTL:       ttl,
 			Action:    r.Action,
 		}
 		res = append(res, re)
@@ -475,6 +493,7 @@ type OPRecordEntry struct {
 	Type      string `json:"type"`
 	Value     string `json:"value"`
 	RealValue string `json:"real_value"`
+	TTL       string `json:"ttl"`
 	Err       error  `json:"err"`
 	Message   string `json:"message"`
 }
@@ -504,7 +523,11 @@ func loadRecordFile(f string) ([]*OPRecordEntry, error) {
 			SubDomain: parts[0],
 			Type:      parts[1],
 			Value:     parts[2],
-			Action:    RecordActionCreate,
+			TTL:       DefaultTTL,
+			Action:    RecordActionImport,
+		}
+		if len(parts) >= 4 {
+			re.TTL = parts[3]
 		}
 		res = append(res, re)
 	}
@@ -694,17 +717,24 @@ func genRecordParams(r *OPRecordEntry, zinfo *dnspodapi.DomainEntry,
 ) dnspodapi.Params {
 	res := dnspodapi.P()
 	res.Add("record_line_id", DefaultRecordLineID)
-	if r.Type == "CNAME" && strings.HasSuffix(r.Value, ".") {
-		// is local zone
-		r.RealValue = fmt.Sprintf("%s%s", r.Value, zinfo.Name)
-	} else {
-		r.RealValue = r.Value
-	}
+	r.RealValue = getRealValue(r.Type, r.Value, zinfo.Name)
 	res.Add("sub_domain", r.SubDomain)
 	res.Add("record_type", r.Type)
 	res.Add("value", r.RealValue)
 	res.Add("domain", zinfo.Name)
 	res.Add("domain_id", zinfo.ID)
+	res.Add("ttl", r.TTL)
+	return res
+}
+
+func getRealValue(typ, value, domain string) string {
+	res := value
+	if typ == "CNAME" {
+		if strings.HasSuffix(value, ".") {
+			res = fmt.Sprintf("%s%s", value, domain)
+		}
+		res = strings.Replace(res, CNAMEMagicString, domain, -1)
+	}
 	return res
 }
 

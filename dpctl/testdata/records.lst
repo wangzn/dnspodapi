@@ -4,6 +4,8 @@ proxy A 1.1.1.4
 proxy A 1.1.1.6
 www CNAME proxy.
 www2 CNAME proxy2.
-proxy2 A 3.3.3.3
-proxy2 A 3.3.3.4
-ash NS ns1.sogou.com.
+proxy2 A 3.3.3.3 6000
+proxy2 A 3.3.3.4 6000
+cdn1 CNAME abc.{DOMAIN}.tencentcdn.com
+cdn2 CNAME proxy2.
+cdn3 CNAME abc.{DOMAIN}.tencentcdn.com.
