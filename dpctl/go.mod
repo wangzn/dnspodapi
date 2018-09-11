@@ -1,6 +1,7 @@
 module github.com/wangzn/dnspodapi/dpctl
 
 require (
+	github.com/boljen/go-bitmap v0.0.0-20151001105940-23cd2fb0ce7d
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/olekukonko/tablewriter v0.0.0-20180506121414-d4647c9c7a84

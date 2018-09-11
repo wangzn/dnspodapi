@@ -56,7 +56,8 @@ func GetVersion() (string, error) {
 			if ret.Status.Code == "1" {
 				return ret.Status.Message, nil
 			}
-			return "", Err(ErrInvalidStatus, ret.Status.Code, ret.Status.Message)
+			return "", Err(ErrInvalidStatus, "Info.Version", ret.Status.Code,
+				ret.Status.Message)
 		}
 		return "", Err(ErrInvalidTypeAssertion, "InfoVersionResult")
 	}

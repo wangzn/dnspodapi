@@ -19,13 +19,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/boljen/go-bitmap"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+
 	"github.com/wangzn/dnspodapi"
 	"github.com/wangzn/goutils/mymap"
 	"github.com/wangzn/goutils/structs"
@@ -41,16 +42,29 @@ const (
 	RecordActionModify = "modify"
 )
 
+const (
+	// RecordFlagClear for clear conflict records
+	RecordFlagClear = iota
+	// RecordFlagForceDomain for create domain if not exist when import record
+	RecordFlagForceDomain
+	// RecordFlagExclude for exclude non declared records when ensure
+	RecordFlagExclude
+	// RecordFlagClearNS for force clear @ NS record
+	RecordFlagClearNS
+)
+
 var (
 	records        string
 	typ            string
 	value          string
 	recordAct      string
-	clear          bool
 	recordFile     string
 	zone           string
 	exportFileMode string
+	clearConflict  bool
 	forceDomain    bool
+	exclude        bool
+	forceClearNS   bool
 )
 
 var (
@@ -79,16 +93,22 @@ func init() {
 		"record value")
 
 	recordCmd.PersistentFlags().StringVarP(&recordAct, "action", "a", "list",
-		"record action: [ create | remove | info | list | import | export | enable | disable ]")
+		"record action: [ ensure | create | remove | info | list | import | export | enable | disable ]")
 
 	recordCmd.PersistentFlags().StringVar(&format, "format", "table",
 		"output format: [ json | table ]")
 
-	recordCmd.Flags().BoolVarP(&clear, "clear", "c", false,
-		"clear existed record when importing records")
+	recordCmd.Flags().BoolVarP(&clearConflict, "clear", "c", false,
+		"clear conflict existed record when import")
 
 	recordCmd.Flags().BoolVar(&forceDomain, "force-domain", false,
 		"force create new domain if not exist")
+
+	recordCmd.Flags().BoolVar(&exclude, "exclude", false,
+		"exlude other records when ensure domain records")
+
+	recordCmd.Flags().BoolVar(&forceClearNS, "force-clear-NS", false,
+		"clear '@' NS anyway")
 
 	recordCmd.Flags().StringVarP(&zone, "domain", "d", "",
 		"domains for records, use ',' for multiple domains, e.g. 'abc.com,def.com'")
@@ -106,27 +126,66 @@ func runRecordCmd(cmd *cobra.Command, args []string) {
 		Action:   recordAct,
 		APIID:    apiID,
 		APIToken: apiToken,
-		Params:   fillRecordParams(),
+		// Params:   fillRecordParams(),
 	}
+	fillRecordParams(&r)
 	r.Run()
 }
 
-func fillRecordParams() map[string]string {
+func fillRecordParams(r *RecordActionRunner) {
 	m := make(map[string]string)
 	m["domain"] = zone
 	m["value"] = value
 	m["type"] = typ
 	m["clear"] = "off"
-	if clear {
+	if clearConflict {
 		m["clear"] = "on"
+		r.clearConflict = true
 	}
 	m["force_domain"] = "off"
 	if forceDomain {
 		m["force_domain"] = "on"
+		r.forceDomain = true
 	}
 	m["record_file"] = recordFile
 	m["export_file_mode"] = exportFileMode
-	return m
+	if exclude {
+		m["exlude"] = "on"
+		r.exlude = true
+	}
+	if forceClearNS {
+		m["force_clear_ns"] = "on"
+		r.forceClearNS = true
+	}
+	//return m
+	r.Params = m
+	bm := bitmap.New(10)
+	bm.Set(RecordFlagClear, r.clearConflict)
+	bm.Set(RecordFlagClearNS, r.forceClearNS)
+	bm.Set(RecordFlagExclude, r.exlude)
+	bm.Set(RecordFlagForceDomain, r.forceDomain)
+	r.bm = bm
+}
+
+func fillRecordFlags(r *RecordActionRunner, m map[string]string) {
+	clearConflict := mymap.StringMustString(m, "clear")
+	forceDomain := mymap.StringMustString(m, "force_domain")
+	exclude := mymap.StringMustString(m, "exclude")
+	forceClearNS := mymap.StringMustString(m, "force_clear_ns")
+	bm := bitmap.New(10)
+	if clearConflict == "on" {
+		bm.Set(RecordFlagClear, true)
+	}
+	if forceDomain == "on" {
+		bm.Set(RecordFlagForceDomain, true)
+	}
+	if exclude == "on" {
+		bm.Set(RecordFlagExclude, true)
+	}
+	if forceClearNS == "on" {
+		bm.Set(RecordFlagClearNS, true)
+	}
+	r.bm = bm
 }
 
 // RecordActionRunner defines the runner to run record action
@@ -136,6 +195,9 @@ type RecordActionRunner struct {
 	Params   map[string]string
 	APIID    int
 	APIToken string
+
+	clearConflict, forceDomain, exlude, forceClearNS bool
+	bm                                               bitmap.Bitmap
 }
 
 // Run starts to run action
@@ -181,6 +243,8 @@ func (r *RecordActionRunner) run() {
 		os.Exit(1)
 	}
 	switch r.Action {
+	case "ensure":
+		r.doEnsureRecord()
 	case "create":
 		r.doCreateRecord()
 	case "remove":
@@ -198,6 +262,29 @@ func (r *RecordActionRunner) run() {
 	}
 }
 
+func (r *RecordActionRunner) doEnsureRecord() {
+
+	data := r.Params
+	fn := mymap.StringMustString(data, "record_file")
+	dms := mymap.StringMustString(data, "domain")
+
+	rs, err := loadRecordFile(fn)
+	if err != nil {
+		pe(err)
+		return
+	}
+	// in ensure, clear is always on
+	// r.bm.Set(RecordFlagClear, true)
+	res, cls, errs := addRecordsWithFlags(rs, dms, r.bm)
+	//	fmt.Println("Created records:")
+	fmt.Println(FormatOps(res, format, "Ensure records"))
+	if cls != nil && len(cls) > 0 {
+		//		fmt.Println("Cleared records:")
+		fmt.Println(FormatOps(cls, format, "Cleared recoreds"))
+	}
+	pe(errs...)
+}
+
 func (r *RecordActionRunner) toOPRecordEntry() []*OPRecordEntry {
 	res := make([]*OPRecordEntry, 0)
 	typ := mymap.StringMustString(r.Params, "type")
@@ -207,7 +294,7 @@ func (r *RecordActionRunner) toOPRecordEntry() []*OPRecordEntry {
 			SubDomain: record,
 			Type:      typ,
 			Value:     val,
-			Action:    RecordActionCreate,
+			Action:    r.Action,
 		}
 		res = append(res, re)
 	}
@@ -216,21 +303,12 @@ func (r *RecordActionRunner) toOPRecordEntry() []*OPRecordEntry {
 
 func (r *RecordActionRunner) doCreateRecord() {
 	data := r.Params
-	cl := mymap.StringMustString(data, "clear")
-	fd := mymap.StringMustString(data, "force_domain")
+
 	dms := mymap.StringMustString(data, "domain")
-	clb := false
-	fdb := false
-	if cl == "on" {
-		clb = true
-	}
-	if fd == "on" {
-		fdb = true
-	}
 
 	rs := r.toOPRecordEntry()
 
-	res, cls, errs := addRecords(rs, dms, clb, fdb)
+	res, cls, errs := addRecordsWithFlags(rs, dms, r.bm)
 	fmt.Println(FormatOps(res, format, "Created records"))
 	if cls != nil && len(cls) > 0 {
 		fmt.Println(FormatOps(cls, format, "Cleared recoreds"))
@@ -248,7 +326,8 @@ func (r *RecordActionRunner) doRemoveRecord() {
 		if ers != nil && len(ers) > 0 {
 			errs = append(errs, ers...)
 		}
-		cls := clearSubdomain(zinfo.Name, zinfo.ID, crs)
+		cls := clearSubdomain(zinfo.Name, zinfo.ID, crs,
+			r.bm.Get(RecordFlagClearNS))
 		if cls != nil && len(cls) > 0 {
 			res = append(res, cls...)
 		}
@@ -340,17 +419,7 @@ func (r *RecordActionRunner) doListRecord() {
 func (r *RecordActionRunner) doImportRecord() {
 	data := r.Params
 	fn := mymap.StringMustString(data, "record_file")
-	cl := mymap.StringMustString(data, "clear")
-	fd := mymap.StringMustString(data, "force_domain")
 	dms := mymap.StringMustString(data, "domain")
-	clb := false
-	fdb := false
-	if cl == "on" {
-		clb = true
-	}
-	if fd == "on" {
-		fdb = true
-	}
 
 	rs, err := loadRecordFile(fn)
 	if err != nil {
@@ -358,7 +427,7 @@ func (r *RecordActionRunner) doImportRecord() {
 		return
 	}
 
-	res, cls, errs := addRecords(rs, dms, clb, fdb)
+	res, cls, errs := addRecordsWithFlags(rs, dms, r.bm)
 	//	fmt.Println("Created records:")
 	fmt.Println(FormatOps(res, format, "Imported records"))
 	if cls != nil && len(cls) > 0 {
@@ -445,11 +514,13 @@ func loadRecordFile(f string) ([]*OPRecordEntry, error) {
 	return res, nil
 }
 
-// addRecords add all record into multi-zones
+// addRecordsWithExclude add all record into multi-zones
 // returns all cleared records info if clear is true
-func addRecords(rs []*OPRecordEntry, zs string, clear, autoDomain bool) (
+// if exd, then all other records not in rs will be removed
+func addRecordsWithFlags(rs []*OPRecordEntry, zs string, bm bitmap.Bitmap) (
 	[]*OPRecordEntry, []*OPRecordEntry, []error,
 ) {
+	autoDomain := bm.Get(RecordFlagForceDomain)
 	clret := make([]*OPRecordEntry, 0)
 	rsret := make([]*OPRecordEntry, 0)
 	errs := make([]error, 0)
@@ -476,7 +547,7 @@ func addRecords(rs []*OPRecordEntry, zs string, clear, autoDomain bool) (
 		}
 		zrs, err := dnspodapi.ListRecord(z, zinfo.ID)
 		if err != nil {
-			log.Println(err.Error())
+			//log.Println(err.Error())
 			errs = append(errs, err)
 			continue
 		}
@@ -487,7 +558,7 @@ func addRecords(rs []*OPRecordEntry, zs string, clear, autoDomain bool) (
 			rss = cprs(rs)
 		}
 
-		crs := addRecordsInZone(rss, zrs, zinfo, clear)
+		crs := addRecordsInZone(rss, zrs, zinfo, bm)
 
 		clret = append(clret, crs...)
 		rsret = append(rsret, rss...)
@@ -498,17 +569,31 @@ func addRecords(rs []*OPRecordEntry, zs string, clear, autoDomain bool) (
 // addRecordsInZone add all records into zone,
 // return all cleared record info if clear is true
 func addRecordsInZone(rs []*OPRecordEntry, zrs []dnspodapi.RecordEntry,
-	zinfo *dnspodapi.DomainEntry, clear bool) []*OPRecordEntry {
+	zinfo *dnspodapi.DomainEntry, bm bitmap.Bitmap) []*OPRecordEntry {
 	clearret := make([]*OPRecordEntry, 0)
+	exluded := make(map[string]bool)
+	clear := bm.Get(RecordFlagClear)
+	exd := bm.Get(RecordFlagExclude)
+	cns := bm.Get(RecordFlagClearNS)
+	for _, r := range zrs {
+		exluded[r.ID] = false
+	}
 	for _, r := range rs {
-		rinfos := checkSubdomain(r, zrs)
+		rinfos := checkSubdomain(r, zrs, exluded)
 		if rinfos != nil && len(rinfos) > 0 {
 			// if exist
 			if clear {
 				// if clear, then first clear and add
-				cls := clearSubdomain(zinfo.Name, zinfo.ID, rinfos)
+				cls := clearSubdomain(zinfo.Name, zinfo.ID, rinfos, cns)
 				if cls != nil && len(cls) > 0 {
 					clearret = append(clearret, cls...)
+				}
+				for _, cr := range cls {
+					if cr.Err == nil {
+						if _, ok := exluded[cr.RecordID]; ok {
+							exluded[cr.RecordID] = true
+						}
+					}
 				}
 				addRecordInZone(r, zinfo)
 			} else {
@@ -522,15 +607,36 @@ func addRecordsInZone(rs []*OPRecordEntry, zrs []dnspodapi.RecordEntry,
 			addRecordInZone(r, zinfo)
 		}
 	}
+	if exd {
+		excludeInfos := make([]dnspodapi.RecordEntry, 0)
+		for _, r := range zrs {
+			// for all records in zrs, find those not excluded and clear them all
+			if ex, ok := exluded[r.ID]; ok {
+				if !ex {
+					excludeInfos = append(excludeInfos, r)
+				}
+			}
+		}
+		cls := clearSubdomain(zinfo.Name, zinfo.ID, excludeInfos, cns)
+		if cls != nil && len(cls) > 0 {
+			clearret = append(clearret, cls...)
+		}
+	}
 	return clearret
 }
 
 // checkSubdomain returns all records with same subdomain and type
 func checkSubdomain(r *OPRecordEntry, zrs []dnspodapi.RecordEntry,
-) []dnspodapi.RecordEntry {
+	exluded map[string]bool) []dnspodapi.RecordEntry {
 	ret := make([]dnspodapi.RecordEntry, 0)
 	for _, v := range zrs {
 		// if r.SubDomain == v.Name && r.Type == v.Type {
+		if exd, ok := exluded[v.ID]; ok {
+			if exd {
+				// if it has been clear by some other conflict records, just continue
+				continue
+			}
+		}
 		if r.SubDomain == v.Name {
 			// TODO: use more strict conflict test in this case
 			ret = append(ret, v)
@@ -540,9 +646,13 @@ func checkSubdomain(r *OPRecordEntry, zrs []dnspodapi.RecordEntry,
 }
 
 func clearSubdomain(domain string, domainID string, zrs []dnspodapi.RecordEntry,
-) []*OPRecordEntry {
+	cns bool) []*OPRecordEntry {
 	ret := make([]*OPRecordEntry, 0)
 	for _, v := range zrs {
+		if !cns && v.Name == "@" && v.Type == "NS" {
+			// if not force clear ns, then DO NOT clear NS record @
+			continue
+		}
 		or := &OPRecordEntry{
 			Domain:    domain,
 			DomainID:  domainID,

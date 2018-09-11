@@ -1,1 +1,9 @@
-www A 1.1.1.1
+proxy A 1.1.1.4
+#www CNAME proxy.
+#www A 1.1.1.5
+proxy A 1.1.1.6
+www CNAME proxy.
+www2 CNAME proxy2.
+proxy2 A 3.3.3.3
+proxy2 A 3.3.3.4
+ash NS ns1.sogou.com.
